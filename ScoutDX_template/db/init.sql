@@ -1,4 +1,3 @@
-
 -- テーブル関係（ざっくり）:
 -- users
 --   ├─ job_drafts (created_by)
