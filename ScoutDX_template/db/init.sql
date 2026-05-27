@@ -26,6 +26,19 @@ CREATE TABLE IF NOT EXISTS users (
   CONSTRAINT chk_users_role CHECK (role IN ('CREATOR', 'SALES_APPROVER', 'ADMIN'))
 );
 
+INSERT INTO users (id, password_hash, name, role)
+VALUES
+  ('creator_demo', 'demo-hash', 'デモ作成者', 'CREATOR'),
+  ('creator01', 'dummyhash', 'テスト作成者', 'CREATOR'),
+  ('sales01', 'demo-hash', '営業承認者サンプル', 'SALES_APPROVER'),
+  ('admin01', 'demo-hash', '管理者サンプル', 'ADMIN')
+ON CONFLICT (id) DO UPDATE
+SET
+  password_hash = EXCLUDED.password_hash,
+  name = EXCLUDED.name,
+  role = EXCLUDED.role,
+  updated_at = CURRENT_TIMESTAMP;
+
 -- ------------------------------------------------------
 -- job_drafts: 求人の下書き
 -- created_by は users.id を参照（存在しないユーザーIDは不可）
