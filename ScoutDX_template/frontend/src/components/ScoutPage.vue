@@ -1,244 +1,380 @@
 <template>
-  <div class="page">
-    <header class="page-header">
-      <h1>スカウト文 接続確認</h1>
-      <p>バックエンド API との GET / POST が動作することを確認する画面です</p>
-    </header>
+  <div class="page-wrap">
+    <div class="page">
+      <header class="page-header">
+        <button type="button" class="back-button" @click="handleBack">戻る</button>
+        <h1>求人ドラフト登録</h1>
+        <p>求人情報を入力してスカウトを作成します</p>
+      </header>
 
-    <section class="card">
-      <h2>新規作成（POST）</h2>
-      <form @submit.prevent="handleSubmit">
-        <label>
-          作成者
-          <input v-model="form.creator" type="text" placeholder="山田太郎" required />
-        </label>
-        <label>
-          タイトル
-          <input v-model="form.title" type="text" placeholder="エンジニア向けスカウト" required />
-        </label>
-        <label>
-          本文
-          <textarea v-model="form.body" rows="4" placeholder="スカウト文の本文..." required />
-        </label>
-        <button
-          type="button"
-          class="btn-secondary"
-          :disabled="generating || store.loading"
-          @click="handleGenerate"
-        >
-          {{ generating ? '生成中...' : 'AIで生成（サンプル）' }}
-        </button>
-        <button type="submit" :disabled="store.loading">作成する</button>
+      <form class="form" @submit.prevent="handleSubmit">
+        <section class="card">
+          <h2>求人情報</h2>
+
+          <label>
+            会社名<span class="required">*</span>
+            <input
+              v-model="form.companyName"
+              type="text"
+              placeholder="例：株式会社テックバーション"
+              required
+            />
+          </label>
+
+          <label>
+            募集職種<span class="required">*</span>
+            <input
+              v-model="form.jobTitle"
+              type="text"
+              placeholder="例：企画営業"
+              required
+            />
+          </label>
+
+          <label>
+            部署名
+            <input
+              v-model="form.departmentName"
+              type="text"
+              placeholder="例：営業企画部"
+            />
+          </label>
+
+          <label>
+            勤務地<span class="required">*</span>
+            <input
+              v-model="form.location"
+              type="text"
+              placeholder="例：東京都港区"
+              required
+            />
+          </label>
+
+          <label>
+            給与
+            <input
+              v-model="form.salary"
+              type="text"
+              placeholder="例：年収500万円〜800万円"
+            />
+          </label>
+
+          <label>
+            勤務時間<span class="required">*</span>
+            <input
+              v-model="form.workingHours"
+              type="text"
+              placeholder="例：9:00-18:00"
+              required
+            />
+          </label>
+
+          <label>
+            業務内容<span class="required">*</span>
+            <textarea
+              v-model="form.description"
+              rows="4"
+              placeholder="業務内容を入力してください"
+              required
+            />
+          </label>
+
+          <label>
+            必須条件<span class="required">*</span>
+            <textarea
+              v-model="form.requirements"
+              rows="4"
+              placeholder="改行して複数入力できます"
+              required
+            />
+          </label>
+
+          <label>
+            福利厚生・待遇<span class="required">*</span>
+            <textarea
+              v-model="form.benefits"
+              rows="4"
+              placeholder="改行して複数入力できます"
+              required
+            />
+          </label>
+
+          <label>
+            自由記述欄
+            <textarea
+              v-model="form.freeText"
+              rows="4"
+              placeholder="任意で補足事項を入力してください"
+            />
+          </label>
+        </section>
+
+        <section class="card">
+          <h2>対象者情報</h2>
+
+          <label>
+            対象者年齢
+            <input
+              v-model="form.targetAge"
+              type="text"
+              placeholder="例：25〜35歳"
+            />
+          </label>
+
+          <label>
+            対象者希望職種
+            <input
+              v-model="form.targetJob"
+              type="text"
+              placeholder="例：フロントエンドエンジニア"
+            />
+          </label>
+
+          <label>
+            対象者性別
+            <input
+              v-model="form.targetGender"
+              type="text"
+              placeholder="例：不問"
+            />
+          </label>
+        </section>
+
+        <p v-if="errorMessage" class="error-message">{{ errorMessage }}</p>
+
+        <div class="actions">
+          <button type="button" class="cancel-button" @click="handleCancel">キャンセル</button>
+          <button type="submit" class="submit-button">保存してスカウトを送信</button>
+        </div>
       </form>
-    </section>
-
-    <section class="card">
-      <p v-if="store.loading" class="message">読み込み中...</p>
-      <p v-else-if="store.error" class="message error">{{ store.error }}</p>
-      <p v-else-if="store.scouts.length === 0" class="message">スカウト文がありません</p>
-
-      <ul v-else class="scout-list">
-        <li v-for="scout in store.scouts" :key="scout.id" class="scout-item">
-          <div class="scout-meta">
-            <span class="id">ID: {{ scout.id }}</span>
-            <span class="status">{{ scout.status }}</span>
-          </div>
-          <h3>{{ scout.title }}</h3>
-          <p class="body">{{ scout.body }}</p>
-          <p class="footer">
-            作成者: {{ scout.creator }} /
-            作成日: {{ formatDate(scout.createdAt) }}
-          </p>
-        </li>
-      </ul>
-    </section>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
-import { fetchGeneratedScoutSample } from '../api/aiApi'
-import { useScoutStore } from '../store/scoutStore'
-import type { ScoutEntity } from '../type/scout'
+import { reactive, ref } from 'vue'
 
-const store = useScoutStore()
-
-const form = reactive<Pick<ScoutEntity, 'creator' | 'title' | 'body'>>({
-  creator: '',
-  title: '',
-  body: '',
-})
-
-const generating = ref(false)
-
-async function handleGenerate() {
-  generating.value = true
-  try {
-    const sample = await fetchGeneratedScoutSample()
-    form.body = sample.body
-  } catch (e) {
-    console.error(e)
-  } finally {
-    generating.value = false
-  }
+interface JobDraftForm {
+  companyName: string
+  jobTitle: string
+  departmentName: string
+  location: string
+  salary: string
+  workingHours: string
+  description: string
+  requirements: string
+  benefits: string
+  freeText: string
+  targetAge: string
+  targetJob: string
+  targetGender: string
 }
 
-async function handleSubmit() {
-  const payload: ScoutEntity = { ...form }
-  await store.addScout(payload)
-  form.creator = ''
-  form.title = ''
-  form.body = ''
+const initialForm: JobDraftForm = {
+  companyName: '',
+  jobTitle: '',
+  departmentName: '',
+  location: '',
+  salary: '',
+  workingHours: '',
+  description: '',
+  requirements: '',
+  benefits: '',
+  freeText: '',
+  targetAge: '',
+  targetJob: '',
+  targetGender: '',
 }
 
-function formatDate(value: string | undefined) {
-  if (!value) return '-'
-  return new Date(value).toLocaleString('ja-JP')
+const form = reactive<JobDraftForm>({ ...initialForm })
+const errorMessage = ref('')
+
+function handleBack() {
+  window.history.back()
 }
 
-onMounted(() => {
-  store.loadScouts()
-})
+function handleCancel() {
+  resetForm()
+  errorMessage.value = ''
+}
+
+function handleSubmit() {
+  errorMessage.value = ''
+
+  // 今回はフォーム作成までを対象にし、送信処理は次実装でAPI接続する。
+  window.alert('保存してスカウトを送信しました（画面実装版）')
+}
+
+function resetForm() {
+  form.companyName = initialForm.companyName
+  form.jobTitle = initialForm.jobTitle
+  form.departmentName = initialForm.departmentName
+  form.location = initialForm.location
+  form.salary = initialForm.salary
+  form.workingHours = initialForm.workingHours
+  form.description = initialForm.description
+  form.requirements = initialForm.requirements
+  form.benefits = initialForm.benefits
+  form.freeText = initialForm.freeText
+  form.targetAge = initialForm.targetAge
+  form.targetJob = initialForm.targetJob
+  form.targetGender = initialForm.targetGender
+}
 </script>
 
 <style scoped>
+.page-wrap {
+  min-height: 100vh;
+  background: #eef1f4;
+  padding: 24px 0;
+}
+
 .page {
-  max-width: 800px;
+  max-width: 880px;
   margin: 0 auto;
-  padding: 24px;
+  padding: 0 24px 24px;
   font-family: system-ui, sans-serif;
-  color: #1a202c;
+  color: #1f2933;
 }
 
 .page-header {
-  margin-bottom: 24px;
-}
-
-.page-header h1 {
-  margin: 0 0 8px;
-  font-size: 1.5rem;
-}
-
-.page-header p {
-  margin: 0;
-  color: #4a5568;
-  font-size: 0.9rem;
-}
-
-.card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 20px;
   margin-bottom: 20px;
 }
 
-.card h2 {
-  margin: 0 0 16px;
-  font-size: 1.1rem;
+.back-button {
+  border: 1px solid #c9d1d9;
+  background: #f8fafc;
+  color: #2f3a45;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  margin-bottom: 14px;
 }
 
-form {
+.page-header h1 {
+  margin: 0;
+  font-size: 1.7rem;
+}
+
+.page-header p {
+  margin: 8px 0 0;
+  color: #52606d;
+  font-size: 0.95rem;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  background: #ffffff;
+  border: 1px solid #d9e2ec;
+  border-radius: 12px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.card h2 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
 }
 
 label {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 0.85rem;
+  gap: 6px;
+  font-size: 0.9rem;
   font-weight: 600;
 }
 
 input,
 textarea {
-  padding: 8px 10px;
-  border: 1px solid #cbd5e0;
-  border-radius: 6px;
+  padding: 10px 12px;
+  border: 1px solid #bcccdc;
+  border-radius: 8px;
   font-size: 0.95rem;
+  color: #102a43;
+  background: #ffffff;
 }
 
-button {
-  align-self: flex-start;
-  padding: 8px 16px;
-  background: #3182ce;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
+input::placeholder,
+textarea::placeholder {
+  color: #9aa5b1;
 }
 
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.required {
+  color: #c92a2a;
+  margin-left: 2px;
 }
 
-.btn-secondary {
-  background: #fff;
-  color: #3182ce;
-  border: 1px solid #3182ce;
+.error-message {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.9rem;
 }
 
-.list-header {
+.actions {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-}
-
-.list-header h2 {
-  margin: 0;
-}
-
-.scout-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
   gap: 12px;
 }
 
-.scout-item {
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
-  padding: 12px;
-  background: #f7fafc;
+.cancel-button,
+.submit-button {
+  border-radius: 8px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.93rem;
 }
 
-.scout-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.8rem;
-  color: #718096;
-  margin-bottom: 6px;
+.cancel-button {
+  border: 1px solid #9aa5b1;
+  background: #f5f7fa;
+  color: #334e68;
 }
 
-.scout-item h3 {
-  margin: 0 0 8px;
-  font-size: 1rem;
+.submit-button {
+  border: 1px solid #111111;
+  background: #111111;
+  color: #ffffff;
 }
 
-.body {
-  margin: 0 0 8px;
-  white-space: pre-wrap;
-  line-height: 1.5;
+@media (max-width: 768px) {
+  .page {
+    padding: 0 14px 20px;
+  }
+
+  .actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .cancel-button,
+  .submit-button {
+    width: 100%;
+  }
 }
 
-.footer {
-  margin: 0;
-  font-size: 0.8rem;
-  color: #4a5568;
-}
+@media (max-width: 768px) {
+  .page {
+    padding: 0 14px 20px;
+  }
 
-.message {
-  color: #718096;
-}
+  .actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
 
-.message.error {
-  color: #c53030;
+  .cancel-button,
+  .submit-button {
+    width: 100%;
+  }
 }
 </style>
