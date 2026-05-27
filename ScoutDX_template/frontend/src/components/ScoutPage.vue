@@ -9,7 +9,7 @@
 
       <form class="form" @submit.prevent="handleSubmit">
         <section class="card">
-          <h2>基本情報</h2>
+          <h2>求人情報</h2>
 
           <label>
             会社名<span class="required">*</span>
@@ -22,56 +22,59 @@
           </label>
 
           <label>
-            基幹職種
+            募集職種<span class="required">*</span>
             <input
-              v-model="form.coreJobType"
+              v-model="form.jobTitle"
               type="text"
               placeholder="例：企画営業"
-            />
-          </label>
-
-          <label>
-            給与<span class="required">*</span>
-            <input
-              v-model="form.salary"
-              type="text"
-              placeholder="例：年収500万円〜800万円"
               required
             />
           </label>
 
-          <fieldset class="fieldset">
-            <legend>雇用形態<span class="required">*</span></legend>
-            <div class="checkbox-group">
-              <label class="checkbox-item">
-                <input v-model="form.employmentTypes" type="checkbox" value="正社員" />
-                <span>正社員</span>
-              </label>
-              <label class="checkbox-item">
-                <input v-model="form.employmentTypes" type="checkbox" value="契約社員" />
-                <span>契約社員</span>
-              </label>
-              <label class="checkbox-item">
-                <input v-model="form.employmentTypes" type="checkbox" value="派遣社員" />
-                <span>派遣社員</span>
-              </label>
-              <label class="checkbox-item">
-                <input v-model="form.employmentTypes" type="checkbox" value="業務委託" />
-                <span>業務委託</span>
-              </label>
-            </div>
-          </fieldset>
-        </section>
-
-        <section class="card">
-          <h2>詳細情報</h2>
+          <label>
+            部署名
+            <input
+              v-model="form.departmentName"
+              type="text"
+              placeholder="例：営業企画部"
+            />
+          </label>
 
           <label>
-            業種/職種<span class="required">*</span>
+            勤務地<span class="required">*</span>
+            <input
+              v-model="form.location"
+              type="text"
+              placeholder="例：東京都港区"
+              required
+            />
+          </label>
+
+          <label>
+            給与
+            <input
+              v-model="form.salary"
+              type="text"
+              placeholder="例：年収500万円〜800万円"
+            />
+          </label>
+
+          <label>
+            勤務時間<span class="required">*</span>
+            <input
+              v-model="form.workingHours"
+              type="text"
+              placeholder="例：9:00-18:00"
+              required
+            />
+          </label>
+
+          <label>
+            業務内容<span class="required">*</span>
             <textarea
-              v-model="form.industryAndRole"
+              v-model="form.description"
               rows="4"
-              placeholder="自由記述で入力してください"
+              placeholder="業務内容を入力してください"
               required
             />
           </label>
@@ -110,7 +113,7 @@
           <h2>対象者情報</h2>
 
           <label>
-            年齢
+            対象者年齢
             <input
               v-model="form.targetAge"
               type="text"
@@ -119,20 +122,20 @@
           </label>
 
           <label>
-            性別
-            <input
-              v-model="form.targetGender"
-              type="text"
-              placeholder="例：不問"
-            />
-          </label>
-
-          <label>
-            希望職種
+            対象者希望職種
             <input
               v-model="form.targetJob"
               type="text"
               placeholder="例：フロントエンドエンジニア"
+            />
+          </label>
+
+          <label>
+            対象者性別
+            <input
+              v-model="form.targetGender"
+              type="text"
+              placeholder="例：不問"
             />
           </label>
         </section>
@@ -153,30 +156,34 @@ import { reactive, ref } from 'vue'
 
 interface JobDraftForm {
   companyName: string
-  coreJobType: string
+  jobTitle: string
+  departmentName: string
+  location: string
   salary: string
-  employmentTypes: string[]
-  industryAndRole: string
+  workingHours: string
+  description: string
   requirements: string
   benefits: string
   freeText: string
   targetAge: string
-  targetGender: string
   targetJob: string
+  targetGender: string
 }
 
 const initialForm: JobDraftForm = {
   companyName: '',
-  coreJobType: '',
+  jobTitle: '',
+  departmentName: '',
+  location: '',
   salary: '',
-  employmentTypes: [],
-  industryAndRole: '',
+  workingHours: '',
+  description: '',
   requirements: '',
   benefits: '',
   freeText: '',
   targetAge: '',
-  targetGender: '',
   targetJob: '',
+  targetGender: '',
 }
 
 const form = reactive<JobDraftForm>({ ...initialForm })
@@ -194,27 +201,24 @@ function handleCancel() {
 function handleSubmit() {
   errorMessage.value = ''
 
-  if (form.employmentTypes.length === 0) {
-    errorMessage.value = '雇用形態を1つ以上選択してください'
-    return
-  }
-
   // 今回はフォーム作成までを対象にし、送信処理は次実装でAPI接続する。
   window.alert('保存してスカウトを送信しました（画面実装版）')
 }
 
 function resetForm() {
   form.companyName = initialForm.companyName
-  form.coreJobType = initialForm.coreJobType
+  form.jobTitle = initialForm.jobTitle
+  form.departmentName = initialForm.departmentName
+  form.location = initialForm.location
   form.salary = initialForm.salary
-  form.employmentTypes = [...initialForm.employmentTypes]
-  form.industryAndRole = initialForm.industryAndRole
+  form.workingHours = initialForm.workingHours
+  form.description = initialForm.description
   form.requirements = initialForm.requirements
   form.benefits = initialForm.benefits
   form.freeText = initialForm.freeText
   form.targetAge = initialForm.targetAge
-  form.targetGender = initialForm.targetGender
   form.targetJob = initialForm.targetJob
+  form.targetGender = initialForm.targetGender
 }
 </script>
 
@@ -301,33 +305,6 @@ textarea {
 input::placeholder,
 textarea::placeholder {
   color: #9aa5b1;
-}
-
-.fieldset {
-  margin: 0;
-  border: 1px solid #d9e2ec;
-  border-radius: 8px;
-  padding: 12px;
-}
-
-.fieldset legend {
-  padding: 0 6px;
-  font-size: 0.9rem;
-  font-weight: 600;
-}
-
-.checkbox-group {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.checkbox-item {
-  display: inline-flex;
-  align-items: center;
-  flex-direction: row;
-  gap: 6px;
-  font-weight: 500;
 }
 
 .required {
