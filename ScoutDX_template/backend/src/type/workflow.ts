@@ -44,7 +44,7 @@ export interface JobDraftInput {
 }
 
 export interface GenerateScoutDraftRequest {
-  actorUserId: string;
+  actorUserId?: string;
   jobDraft: JobDraftInput;
 }
 
@@ -83,6 +83,12 @@ export interface ScoutTextResponse {
 export interface GenerateScoutDraftResponse {
   jobDraft: JobDraftResponse;
   scoutText: ScoutTextResponse;
+}
+
+export interface CreatorUserResponse {
+  id: string;
+  name: string;
+  role: UserRole;
 }
 
 export interface GeneratedScoutContent {

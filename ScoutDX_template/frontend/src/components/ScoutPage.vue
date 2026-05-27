@@ -144,7 +144,9 @@
 
         <div class="actions">
           <button type="button" class="cancel-button" @click="handleCancel">キャンセル</button>
-          <button type="submit" class="submit-button">保存してスカウトを送信</button>
+          <button type="submit" class="submit-button" :disabled="isSubmitting">
+            {{ isSubmitting ? '生成中...' : '保存してスカウトを生成' }}
+          </button>
         </div>
       </form>
     </div>
@@ -153,6 +155,10 @@
 
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { generateScoutDraft } from '../api/aiApi'
+import { useScoutDraftFlowStore } from '../store/scoutDraftFlowStore'
+import type { GenerateScoutDraftRequest } from '../type/scout'
 
 interface JobDraftForm {
   companyName: string
@@ -186,8 +192,11 @@ const initialForm: JobDraftForm = {
   targetGender: '',
 }
 
+const router = useRouter()
+const flowStore = useScoutDraftFlowStore()
 const form = reactive<JobDraftForm>({ ...initialForm })
 const errorMessage = ref('')
+const isSubmitting = ref(false)
 
 function handleBack() {
   window.history.back()
@@ -198,11 +207,56 @@ function handleCancel() {
   errorMessage.value = ''
 }
 
-function handleSubmit() {
+async function handleSubmit() {
   errorMessage.value = ''
 
-  // 今回はフォーム作成までを対象にし、送信処理は次実装でAPI接続する。
-  window.alert('保存してスカウトを送信しました（画面実装版）')
+  const payload: GenerateScoutDraftRequest = {
+    jobDraft: {
+      companyName: form.companyName.trim(),
+      jobTitle: form.jobTitle.trim(),
+      departmentName: form.departmentName.trim() || undefined,
+      location: form.location.trim(),
+      salary: form.salary.trim() || undefined,
+      workingHours: form.workingHours.trim(),
+      description: form.description.trim(),
+      requirements: form.requirements.trim(),
+      benefits: form.benefits.trim(),
+      targetAge: form.targetAge.trim(),
+      targetJob: form.targetJob.trim(),
+      targetGender: form.targetGender.trim(),
+      freeText: form.freeText.trim() || undefined,
+    },
+  }
+
+  isSubmitting.value = true
+
+  try {
+    const response = await generateScoutDraft(payload)
+    flowStore.setGeneratedDraft(response)
+    await router.push({
+      name: 'scoutDraftDetail',
+      params: { id: response.scoutText.id },
+    })
+  } catch (error: unknown) {
+    const axiosLikeError = error as {
+      response?: {
+        data?: {
+          message?: string | string[]
+        }
+      }
+    }
+    const message = axiosLikeError.response?.data?.message
+
+    if (Array.isArray(message)) {
+      errorMessage.value = message.join(' / ')
+    } else if (typeof message === 'string') {
+      errorMessage.value = message
+    } else {
+      errorMessage.value = '求人ドラフトの生成に失敗しました。入力内容を確認してください。'
+    }
+  } finally {
+    isSubmitting.value = false
+  }
 }
 
 function resetForm() {
@@ -346,20 +400,9 @@ textarea::placeholder {
   color: #ffffff;
 }
 
-@media (max-width: 768px) {
-  .page {
-    padding: 0 14px 20px;
-  }
-
-  .actions {
-    flex-direction: column-reverse;
-    align-items: stretch;
-  }
-
-  .cancel-button,
-  .submit-button {
-    width: 100%;
-  }
+.submit-button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
 @media (max-width: 768px) {
@@ -377,4 +420,5 @@ textarea::placeholder {
     width: 100%;
   }
 }
+
 </style>

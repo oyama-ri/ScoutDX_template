@@ -1,10 +1,9 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { randomUUID } from 'crypto';
 import {
   GenerateScoutDraftRequest,
@@ -66,22 +65,13 @@ export class JobDraftRegistrationService {
   ): Promise<GenerateScoutDraftResponse> {
     this.validateRequest(request);
 
-    const actorUserId = request.actorUserId.trim();
     const normalizedJobDraft = this.normalizeJobDraft(request.jobDraft);
 
     return this.dataSource.transaction(async (manager) => {
-      const users = (await manager.query(
-        'SELECT id, role FROM users WHERE id = $1',
-        [actorUserId],
-      )) as UserRow[];
-
-      if (users.length === 0) {
-        throw new BadRequestException('指定されたユーザーが存在しません');
-      }
-
-      if (users[0].role !== USER_ROLE.CREATOR) {
-        throw new ForbiddenException('作成者のみドラフト生成できます');
-      }
+      const actorUserId = await this.resolveActorUserId(
+        manager,
+        request.actorUserId,
+      );
 
       const jobDraftId = randomUUID();
       const scoutTextId = randomUUID();
@@ -160,10 +150,6 @@ export class JobDraftRegistrationService {
       throw new BadRequestException('リクエスト形式が不正です');
     }
 
-    if (!request.actorUserId?.trim()) {
-      throw new BadRequestException('actorUserIdは必須です');
-    }
-
     if (!request.jobDraft) {
       throw new BadRequestException('jobDraftは必須です');
     }
@@ -184,6 +170,41 @@ export class JobDraftRegistrationService {
     if (!value || !value.trim()) {
       throw new BadRequestException(`${field}は必須です`);
     }
+  }
+
+  private async resolveActorUserId(
+    manager: EntityManager,
+    requestedActorUserId?: string,
+  ): Promise<string> {
+    const trimmedActorUserId = requestedActorUserId?.trim();
+
+    if (trimmedActorUserId) {
+      const requestedUsers = (await manager.query(
+        'SELECT id, role FROM users WHERE id = $1',
+        [trimmedActorUserId],
+      )) as UserRow[];
+
+      if (requestedUsers.length === 0) {
+        throw new BadRequestException('指定されたユーザーが存在しません');
+      }
+
+      if (requestedUsers[0].role !== USER_ROLE.CREATOR) {
+        throw new BadRequestException('作成者ユーザーのみドラフト生成できます');
+      }
+
+      return trimmedActorUserId;
+    }
+
+    const creatorUsers = (await manager.query(
+      'SELECT id, role FROM users WHERE role = $1 ORDER BY id ASC LIMIT 1',
+      [USER_ROLE.CREATOR],
+    )) as UserRow[];
+
+    if (creatorUsers.length === 0) {
+      throw new BadRequestException('作成者ユーザーが存在しません');
+    }
+
+    return creatorUsers[0].id;
   }
 
   private normalizeJobDraft(input: JobDraftInput): JobDraftInput {
