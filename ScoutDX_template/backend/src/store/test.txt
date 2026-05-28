@@ -1,0 +1,438 @@
+#	機能名	機能概要	優先度	実装範囲	解決する課題	備考
+5.1	ステータス遷移制御	定義されたルールに従ったステータス更新	高	✓	バージョン管理の欠如	必須要件<br>ワークフローの基盤
+5.2	ステータスフィルタ	ステータスによる一覧絞り込み	中	✓	バージョン管理の欠如	任意要件<br>ユーザビリティ向上
+5.3	利用可能文面の確認	最終承認済みの文面一覧表示	高	✓	バージョン管理の欠如	必須要件<br>利用可能なスカウト文を明示
+
+作成者ロール
+# 作成者ロールのシーケンス図（分割版）
+
+## 図1: 共通開始（ダッシュボード初期表示）
+
+対応: 元図の開始から、最初の分岐に入る直前まで。
+
+```mermaid
+sequenceDiagram
+	actor Creator as 作成者
+	participant S02 as S02 ダッシュボード
+	participant App as アプリケーションサービス
+	participant DB as DB
+
+	Note over Creator,S02: 前提: 作成者としてログイン済み
+
+	Creator->>S02: ダッシュボード表示 (openDashboard())
+	S02->>App: 初期データ取得 (getCreatorDashboardData())
+	App->>DB: 作成者向け案件/タスク取得 (findDashboardItemsByCreator())##ちょっと違う？
+	DB-->>App: 一覧データ返却 (returnDashboardItems())
+	App-->>S02: 画面表示データ返却 (presentDashboard())
+```
+
+## 図2: 新規作成ボタン押下（S02→S04、生成/戻る）
+
+対応: 元図の `alt 新規作成ボタン押下` ブロック全体。
+
+```mermaid
+sequenceDiagram
+	actor Creator as 作成者
+	participant S02 as S02 ダッシュボード
+	participant S04 as S04 求人ドラフト登録
+	participant S05 as S05 スカウト文詳細・編集
+	participant App as アプリケーションサービス
+	participant DB as DB
+
+	alt 新規作成ボタン押下
+		Creator->>S02: 新規作成クリック (onClickCreateNew())
+		S02->>S04: 画面遷移 (navigateToDraftRegistration())
+
+		alt 生成ボタン押下
+			Creator->>S04: 生成クリック (onClickGenerateScout())　##生成クリックしたらS5じゃない？
+			Note over Creator,S04: 必須項目(約7項目)は入力必須
+			Note over S04,App: generateScoutDraft() ではエラー判定を行わない
+			S04->>App: ドラフト作成/生成依頼 (generateScoutDraft())
+			App->>DB: ドラフト保存 (saveDraft())
+			DB-->>App: 保存結果返却 (returnDraftResult())
+			App-->>S04: 生成結果返却 (presentGeneratedScout()) ##S5に返すんじゃない？
+			S04->>S05: 画面遷移 (navigateToScoutDetailEditor()) ##上がS5なら多分いらない。
+		else 戻るボタン押下
+			Creator->>S04: 戻るクリック (onClickBackFromDraft())
+			S04->>S02: 画面遷移 (navigateBackToDashboard())
+		end
+	end
+```
+
+## 図3: タスク一覧ボタン押下（S02→S03、選択/戻る）
+##　多分DBからスカウト文詳細持ってこないと？
+
+対応: 元図の `else タスク一覧ボタン押下` ブロック。
+
+```mermaid
+sequenceDiagram
+	actor Creator as 作成者
+	participant S02 as S02 ダッシュボード
+	participant S03 as S03 タスク一覧
+	participant S05 as S05 スカウト文詳細・編集
+
+	alt タスク一覧ボタン押下
+		Creator->>S02: タスク一覧クリック (onClickTaskList())
+		S02->>S03: 画面遷移 (navigateToTaskList())
+
+		alt スカウト文選択
+			Creator->>S03: 対象選択 (onSelectScoutFromTaskList())
+			S03->>S05: 画面遷移 (navigateToScoutDetailEditor())
+		else 戻るボタン押下
+			Creator->>S03: 戻るクリック (onClickBackFromTaskList())
+			S03->>S02: 画面遷移 (navigateBackToDashboard())
+		end
+	end
+```
+
+## 図4: スカウト文リストから選択（S02→S05）
+
+対応: 元図の `else スカウト文リストから選択` ブロック。
+
+```mermaid
+sequenceDiagram
+	actor Creator as 作成者
+	participant S02 as S02 ダッシュボード
+	participant S05 as S05 スカウト文詳細・編集
+
+	alt スカウト文リストから選択
+		Creator->>S02: スカウト文選択 (onSelectScoutFromDashboard())
+		S02->>S05: 画面遷移 (navigateToScoutDetailEditor())
+	end
+```
+
+## 図5: 承認申請履歴ボタン押下（S02→S06、選択/戻る）
+
+対応: 元図の `else 承認申請履歴ボタン押下` ブロック。
+
+```mermaid
+sequenceDiagram
+	actor Creator as 作成者
+	participant S02 as S02 ダッシュボード
+	participant S06 as S06 承認申請履歴
+	participant S05 as S05 スカウト文詳細・編集
+
+	alt 承認申請履歴ボタン押下
+		Creator->>S02: 承認申請履歴クリック (onClickApplicationHistory())
+		S02->>S06: 画面遷移 (navigateToApplicationHistory())
+
+		alt スカウト文選択
+			Creator->>S06: 対象選択 (onSelectScoutFromHistory())
+			S06->>S05: 画面遷移 (navigateToScoutDetailEditor())
+		else 戻るボタン押下
+			Creator->>S06: 戻るクリック (onClickBackFromHistory())
+			S06->>S02: 画面遷移 (navigateBackToDashboard())
+		end
+	end
+```
+
+## 図6: S05で承認申請ボタン押下（必須チェック分岐）
+
+対応: 元図の `alt S05で承認申請ボタン押下` ブロック。
+
+```mermaid
+sequenceDiagram
+	actor Creator as 作成者
+	participant S05 as S05 スカウト文詳細・編集
+	participant S02 as S02 ダッシュボード
+	participant S08 as S08 承認待ち一覧(営業承認)
+	participant App as アプリケーションサービス
+	participant DB as DB
+
+	alt S05で承認申請ボタン押下
+		Creator->>S05: 承認申請クリック (onClickSubmitForApproval())
+		S05->>App: 申請処理 (submitOrSaveScout(action=submit))
+		App->>App: 必須項目チェック(7項目) (validateRequiredFieldsForSubmit())
+		alt 必須項目不足
+			App-->>S05: エラー文返却 (presentRequiredFieldError())
+		else 必須項目OK
+			App->>DB: ステータス更新(営業承認待ち) (updateScoutStatusToPendingSalesApproval())
+			DB-->>App: 更新結果返却 (returnUpdateResult())
+			App-->>S05: 申請完了表示 (presentSubmitSuccess())
+			S05->>S02: 画面遷移 (navigateBackToDashboard())
+			Note over S08,DB: 営業承認待ちのS8一覧で参照可能になる
+		end
+	end
+```
+
+## 図7: S05で一時保存ボタン押下
+
+対応: 元図の `else S05で一時保存ボタン押下` ブロック。
+
+```mermaid
+sequenceDiagram
+	actor Creator as 作成者
+	participant S05 as S05 スカウト文詳細・編集
+	participant S02 as S02 ダッシュボード
+	participant App as アプリケーションサービス
+	participant DB as DB
+
+	alt S05で一時保存ボタン押下
+		Creator->>S05: 一時保存クリック (onClickSaveDraft())
+		S05->>App: 一時保存処理 (submitOrSaveScout(action=save))
+		App->>DB: ステータス更新(下書き) (updateScoutStatusToDraft())
+		DB-->>App: 更新結果返却 (returnUpdateResult())
+		App-->>S05: 保存完了表示 (presentSaveSuccess())
+		S05->>S02: 画面遷移 (navigateBackToDashboard())
+	end
+```
+
+## 図8: S05から戻る
+
+対応: 元図の `opt S05から戻る` ブロック。
+
+```mermaid
+sequenceDiagram
+	actor Creator as 作成者
+	participant S05 as S05 スカウト文詳細・編集
+	participant S02 as S02 ダッシュボード
+
+	opt S05から戻る
+		Creator->>S05: 戻るクリック (onClickBackFromScoutDetail())
+		S05->>S02: 画面遷移 (navigateBackToDashboard())
+	end
+```
+
+## 確定した前提
+
+- generateScoutDraft(): 必須項目(約7項目)は入力必須。ただしこの処理ではエラー判定を行わない
+- submitOrSaveScout(): 承認申請時に必須項目不足をチェックし、不足時はエラー文を表示
+- submitOrSaveScout(): 作成者から申請されたスカウト文は営業承認のS8(承認待ち一覧)で扱われる
+- S05の戻り先: 戻るボタン・一時保存後は常にS02へ遷移
+- DB正式名称: 一旦「DB」を使用
+
+営業承認者ロール
+# 営業承認者ロールのシーケンス図（分割版）
+
+## 図1: 共通開始（ダッシュボード初期表示）
+
+対応: 元図の開始から、最初の分岐（alt）に入る直前まで。
+
+```mermaid
+sequenceDiagram
+	actor Sales as 営業承認者
+	participant S02 as S02 ダッシュボード
+	participant App as アプリケーションサービス
+	participant DB as DB
+
+	Note over Sales,S02: 前提: 営業承認者としてログイン済み
+
+	Sales->>S02: ダッシュボード表示 (openDashboard())
+	S02->>App: 初期データ取得 (getSalesDashboardData())
+	App->>DB: 営業承認者向け案件取得 (findApprovalItemsBySales())
+	DB-->>App: 一覧データ返却 (returnApprovalItems())
+	App-->>S02: 画面表示データ返却 (presentDashboard())
+```
+
+## 図2: 承認待ち一覧メニュー押下～承認/差戻し/戻る
+
+対応: 元図の `alt 承認待ち一覧メニュー押下` ブロック全体。
+
+```mermaid
+sequenceDiagram
+	actor Sales as 営業承認者
+	participant S02 as S02 ダッシュボード
+	participant S08 as S08 承認待ち一覧
+	participant S07 as S07 スカウト文承認・差戻
+	participant App as アプリケーションサービス
+	participant DB as DB
+
+	alt 承認待ち一覧メニュー押下
+		Sales->>S02: 承認待ち一覧クリック (onClickApprovalWaitingList())
+		S02->>S08: 画面遷移 (navigateToApprovalWaitingList())
+
+		alt スカウト文選択
+			Sales->>S08: 対象選択 (onSelectScoutFromWaitingList())
+			S08->>S07: 画面遷移 (navigateToApprovalOrReturn())
+
+			alt 承認ボタン押下
+				Sales->>S07: 承認クリック (onClickApprove())
+				S07->>App: 承認処理 (approveScout())
+				App->>DB: ステータス更新(states→管理者承認待ち) (updateStatusToPendingManagerApproval())
+				DB-->>App: 更新結果返却 (returnUpdateResult())
+				App-->>S07: 承認完了表示 (presentApproveSuccess())
+				S07->>S08: 画面遷移 (navigateBackToApprovalWaitingList())
+			else 差戻しボタン押下
+				Sales->>S07: 差戻しクリック (onClickReturn())
+				S07->>S07: 理由選択・コメント入力 (selectReturnReasonAndComment())
+				S07->>App: 差戻し処理 (returnScout())
+				App->>DB: ステータス更新(states→差戻し)・理由保存 (updateStatusToReturnedAndSaveReason())
+				DB-->>App: 更新結果返却 (returnUpdateResult())
+				App-->>S07: 差戻し完了表示 (presentReturnSuccess())
+				S07->>S08: 画面遷移 (navigateBackToApprovalWaitingList())
+			end
+		else 戻るボタン押下
+			Sales->>S08: 戻るクリック (onClickBackFromWaitingList())
+			S08->>S02: 画面遷移 (navigateBackToDashboard())
+		end
+	end
+```
+
+## 図3: スカウト文リストから選択（S02→S05）
+
+対応: 元図の `else スカウト文リストから選択` ブロック。
+
+```mermaid
+sequenceDiagram
+	actor Sales as 営業承認者
+	participant S02 as S02 ダッシュボード
+	participant S05 as S05 スカウト文詳細（閲覧のみ）
+
+	alt スカウト文リストから選択
+		Sales->>S02: スカウト文選択 (onSelectScoutFromDashboard())
+		S02->>S05: 画面遷移 (navigateToScoutDetailReadOnly())
+		Note over S05: 編集UIは非表示
+	end
+```
+
+## 図4: 承認申請履歴ボタン押下（S02→S06、選択/戻る）
+
+対応: 元図の `else 承認申請履歴ボタン押下` ブロック。
+
+```mermaid
+sequenceDiagram
+	actor Sales as 営業承認者
+	participant S02 as S02 ダッシュボード
+	participant S06 as S06 承認申請履歴
+	participant S05 as S05 スカウト文詳細（閲覧のみ）
+
+	alt 承認申請履歴ボタン押下
+		Sales->>S02: 承認申請履歴クリック (onClickApplicationHistory())
+		S02->>S06: 画面遷移 (navigateToApplicationHistory())
+
+		alt スカウト文選択
+			Sales->>S06: 対象選択 (onSelectScoutFromHistory())
+			S06->>S05: 画面遷移 (navigateToScoutDetailReadOnly())
+			Note over S05: 編集UIは非表示
+		else 戻るボタン押下
+			Sales->>S06: 戻るクリック (onClickBackFromHistory())
+			S06->>S02: 画面遷移 (navigateBackToDashboard())
+		end
+	end
+```
+
+管理者ロール
+# 管理者ロールのシーケンス図（分割版）
+
+## 図1: 共通開始（ダッシュボード初期表示）
+
+```mermaid
+sequenceDiagram
+	actor Manager as 管理者
+	participant S02 as S02 ダッシュボード
+	participant App as アプリケーションサービス
+	participant DB as DB
+
+	Note over Manager,S02: 前提: 管理者としてログイン済み
+
+	Manager->>S02: ダッシュボード表示 (openDashboard())
+	S02->>App: 初期データ取得 (getManagerDashboardData())
+	App->>DB: 管理者向け案件取得(states=管理者承認待ち) (findApprovalItemsByManager())
+	DB-->>App: 一覧データ返却 (returnApprovalItems())
+	App-->>S02: 画面表示データ返却 (presentDashboard())
+```
+
+## 図2: 承認待ち一覧メニュー押下（S02→S08→S07、承認/差戻し/戻る）
+
+```mermaid
+sequenceDiagram
+	actor Manager as 管理者
+	participant S02 as S02 ダッシュボード
+	participant S08 as S08 承認待ち一覧
+	participant S07 as S07 スカウト文承認・差戻
+	participant App as アプリケーションサービス
+	participant DB as DB
+
+	alt 承認待ち一覧メニュー押下
+		Manager->>S02: 承認待ち一覧クリック (onClickApprovalWaitingList())
+		S02->>S08: 画面遷移 (navigateToApprovalWaitingList())
+
+		alt スカウト文選択
+			Manager->>S08: 対象選択 (onSelectScoutFromWaitingList())
+			S08->>S07: 画面遷移 (navigateToApprovalOrReturn())
+
+			alt 承認ボタン押下
+				Manager->>S07: 承認クリック (onClickApprove())
+				S07->>App: 最終承認処理 (approveScoutAsManager())
+				App->>DB: ステータス更新(states→利用可能) (updateStatusToAvailable())
+				DB-->>App: 更新結果返却 (returnUpdateResult())
+				App-->>S07: 承認完了表示 (presentApproveSuccess())
+				Note over S07,DB: states=利用可能 の場合のみコピー可能
+				S07->>S08: 画面遷移 (navigateBackToApprovalWaitingList())
+			else 差戻しボタン押下
+				Manager->>S07: 差戻しクリック (onClickReturn())
+				S07->>S07: 理由選択(必須)・コメント入力(任意) (selectReturnReasonAndComment())
+				S07->>App: 差戻し処理 (returnScoutAsManager())
+				App->>DB: ステータス更新(states→差戻し)・理由保存 (updateStatusToReturnedAndSaveReason())
+				DB-->>App: 更新結果返却 (returnUpdateResult())
+				App-->>S07: 差戻し完了表示 (presentReturnSuccess())
+				Note over S07,DB: 差戻し理由は states=利用可能 になるまで保持
+				Note over S08,DB: 対象スカウト文は作成者タスク一覧へ返送される
+				S07->>S08: 画面遷移 (navigateBackToApprovalWaitingList())
+			end
+		else 戻るボタン押下
+			Manager->>S08: 戻るクリック (onClickBackFromWaitingList())
+			S08->>S02: 画面遷移 (navigateBackToDashboard())
+		end
+	end
+```
+
+## 図3: スカウト文リストから選択（S02→S05）
+
+```mermaid
+sequenceDiagram
+	actor Manager as 管理者
+	participant S02 as S02 ダッシュボード
+	participant S05 as S05 スカウト文詳細（閲覧のみ）
+
+	alt スカウト文リストから選択
+		Manager->>S02: スカウト文選択 (onSelectScoutFromDashboard())
+		S02->>S05: 画面遷移 (navigateToScoutDetailReadOnly())
+		Note over S05: 編集UIは非表示
+	end
+```
+
+## 図4: 承認申請履歴ボタン押下（S02→S06、選択/戻る）
+
+```mermaid
+sequenceDiagram
+	actor Manager as 管理者
+	participant S02 as S02 ダッシュボード
+	participant S06 as S06 承認申請履歴
+	participant S05 as S05 スカウト文詳細（閲覧のみ）
+
+	alt 承認申請履歴ボタン押下
+		Manager->>S02: 承認申請履歴クリック (onClickApplicationHistory())
+		S02->>S06: 画面遷移 (navigateToApplicationHistory())
+
+		alt スカウト文選択
+			Manager->>S06: 対象選択 (onSelectScoutFromHistory())
+			S06->>S05: 画面遷移 (navigateToScoutDetailReadOnly())
+			Note over S05: 編集UIは非表示
+		else 戻るボタン押下
+			Manager->>S06: 戻るクリック (onClickBackFromHistory())
+			S06->>S02: 画面遷移 (navigateBackToDashboard())
+		end
+	end
+```
+
+## 対応表
+
+| 分割図 | 元図の対応ブロック |
+| --- | --- |
+| 図1 | 開始〜最初の `alt 承認待ち一覧メニュー押下` 直前 |
+| 図2 | `alt 承認待ち一覧メニュー押下` ブロック全体 |
+| 図3 | `else スカウト文リストから選択` ブロック |
+| 図4 | `else 承認申請履歴ボタン押下` ブロック |
+
+## 仕様・前提
+
+- 管理者は states=管理者承認待ち のスカウト文を処理対象とする
+- S07で差戻し時は理由選択必須（5つから選択）、コメントは任意
+- 差戻し時は states=差戻し に更新し、作成者タスク一覧へ返送される
+- 承認時は states=利用可能 に更新し、利用可能ステータス時のみコピー可能
+- S05は編集不可（UI非表示）
+- S06（履歴）は管理者本人のみ表示
+- ステータスは states で管理
+- 差戻し理由は「利用可能」ステータスになるまで保持
+- DB名は「DB」

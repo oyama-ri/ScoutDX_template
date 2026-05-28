@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, PrimaryColumn } from 'typeorm';
+import { ScoutStatus } from '../store/statusうウェイター';
 
 @Entity('scouts')
 export class ScoutEntity {
@@ -17,6 +18,6 @@ export class ScoutEntity {
   @Column({ name: 'body', type: 'text' })
   body: string;
 
-  @Column({ name: 'status', type: 'varchar', length: 20, default: 'DRAFT' })
-  status: string;
+  @Column({ name: 'status', type: 'varchar', length: 20, default: ScoutStatus.DRAFT })
+  status: ScoutStatus;
 }
